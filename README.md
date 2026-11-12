@@ -1,17 +1,17 @@
 
-Hospital Appointment Agent
+**Hospital Appointment Agent**
 
 A chat assistant that books hospital appointments. A Streamlit page talks to a hand-written Python agent, and every model call goes through Azure API Management (APIM) to Azure OpenAI.
 
-Code-based agent: the tool-calling loop is plain Python (agent/agent.py). It does not use the Azure AI Foundry agent service.
+**Code-based agent**: the tool-calling loop is plain Python (agent/agent.py). It does not use the Azure AI Foundry agent service.
 APIM Developer tier sits in front of the model: clients only hold an APIM key, and a policy applies the token limit.
 Bookings are stored in a SQLite database (bookings.db), only after a booking is confirmed.
-Streamlit page ──> Agent loop (Python) ──> APIM gateway ──(managed identity)──> Azure OpenAI
+**Streamlit page ──> Agent loop (Python) ──> APIM gateway ──(managed identity)──> Azure OpenAI
  app.py            agent/agent.py           subscription key,                    your model
                    agent/booking.py         token limit policy                   deployment
                         │
-                        └──> bookings.db (SQLite)
-Project layout
+                        └──> bookings.db (SQLite)**
+**Project layout**
 Path	What it is
 app.py	The whole front end: page, styling and UI helpers in one file
 agent/agent.py	Agent loop and the general tools (calculator, time, notes)
@@ -22,15 +22,14 @@ bookings.db	Created on first use, next to app.py
 
 If you also have ui.py, style.css or .streamlit/config.toml from an earlier version, app.py no longer uses them.
 
-Quick start
+**Quick start**
 
 You need Python 3.10 or newer and a working gateway and model deployment (see Azure setup below).
 
-bash
+**bash**
 pip install -r requirements.txt
 
-Create a .env file next to app.py:
-
+**Create a .env file next to app.py:**
 APIM_GATEWAY_URL=https://<your-apim-name>.azure-api.net
 APIM_SUBSCRIPTION_KEY=<your APIM subscription key>
 AOAI_API_VERSION=2024-10-21
@@ -43,34 +42,34 @@ streamlit run app.py
 
 Try: "Book me a cardiology appointment next Monday at 10, my name is Lena." The assistant checks availability, repeats the details back, and books only after you confirm.
 
-Optional settings: ORG_NAME (shown in the page title, default "Hospital") and BOOKINGS_DB (a different path for the database file).
+**Optional settings:** ORG_NAME (shown in the page title, default "Hospital") and BOOKINGS_DB (a different path for the database file).
 
 You can also test the agent without the page: python agent/agent.py.
 
-Azure setup
+**Azure setup**
 
 The agent needs three things in Azure. Skip any you already have.
 
 1. An Azure OpenAI resource with a model deployment. In the Foundry portal or with the CLI, deploy a current chat model, for example:
 
 bash
-az cognitiveservices account deployment create \
+**az cognitiveservices account deployment create \
   -g <resource-group> -n <openai-resource> \
   --deployment-name <deployment-name> \
   --model-name gpt-4.1-mini --model-version 2025-04-14 --model-format OpenAI \
-  --sku-name Standard --sku-capacity 10
+  --sku-name Standard --sku-capacity 10**
 
 Older models, such as gpt-4o-mini 2024-07-18, have been retired and are refused. Run az cognitiveservices account list-models -g <rg> -n <openai-resource> -o table to see what your resource offers, and use the deployment name in .env.
 
 2. An APIM API in front of it (Developer tier is fine for testing, but has no SLA):
 
-API URL suffix: openai
+**API URL suffix: openai
 Web service URL: https://<openai-resource>.openai.azure.com/openai
 Operation: POST /deployments/{deployment-id}/chat/completions with a deployment-id template parameter
-Subscription: required, header name api-key (the header the Azure OpenAI SDK sends)
+Subscription: required, header name api-key (the header the Azure OpenAI SDK sends)**
 
 3. Permission for APIM to call the model. Turn on APIM's system-assigned identity and give it the role Cognitive Services OpenAI User on the Azure OpenAI resource. This needs someone with Owner or User Access Administrator rights. Then use this inbound policy on the API:
-
+**
 xml
 <policies>
   <inbound>
@@ -84,7 +83,7 @@ xml
   <backend><base /></backend>
   <outbound><base /></outbound>
   <on-error><base /></on-error>
-</policies>
+</policies>**
 
 To check the gateway before running the page:
 
@@ -104,12 +103,12 @@ The script writes AOAI_API_VERSION=2024-06-01. Change it to 2024-10-21 (or newer
 
 Tear everything down later with az group delete -n rg-apim-agent-<suffix> --yes.
 
-Bookings
-Departments: general medicine, cardiology, pediatrics, orthopedics, dermatology (demo doctors).
-Hours: Monday to Friday, slots at 09:00, 10:00, 11:00, 12:00, 14:00, 15:00 and 16:00, up to 60 days ahead.
-Storage: a booking is saved only after every check passes. The database refuses two bookings for the same department, date and time.
-Tools the agent can use: list departments, check availability, book, list bookings, cancel a booking.
-Viewing data: open bookings.db with any SQLite viewer, or run python -c "import sqlite3; print(sqlite3.connect('bookings.db').execute('select * from bookings').fetchall())" from the folder that contains app.py.
+**Bookings**
+**Departments**: general medicine, cardiology, pediatrics, orthopedics, dermatology (demo doctors).
+**Hours**: Monday to Friday, slots at 09:00, 10:00, 11:00, 12:00, 14:00, 15:00 and 16:00, up to 60 days ahead.
+**Storage**: a booking is saved only after every check passes. The database refuses two bookings for the same department, date and time.
+**Tools the agent can use**: list departments, check availability, book, list bookings, cancel a booking.
+**Viewing data**: open bookings.db with any SQLite viewer, or run python -c "import sqlite3; print(sqlite3.connect('bookings.db').execute('select * from bookings').fetchall())" from the folder that contains app.py.
 
 The doctors and slots are demo data, not a real hospital schedule. To connect a real booking system, replace the functions in agent/booking.py and keep their names and return values.
 
