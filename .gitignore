@@ -1,0 +1,16 @@
+# Secrets and local data: never commit these
+.env
+.streamlit/secrets.toml
+bookings.db
+bookings.json
+ 
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+ 
+# Misc
+*.zip
+.DS_Store
+ 
