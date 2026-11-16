@@ -8,6 +8,7 @@ here. The agent, booking and infra code are not touched by it.
 from __future__ import annotations
 
 import html
+import json
 import os
 import sys
 from pathlib import Path
@@ -18,6 +19,7 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "agent"))
 from agent import Agent  # noqa: E402
+from booking import db_info  # noqa: E402
 
 # Read .env next to this file, and let it win over stale shell variables.
 load_dotenv(ROOT / ".env", override=True)
@@ -257,6 +259,13 @@ if prompt:
                 if ev["type"] == "tool_call":
                     steps.append(step_text(ev["name"], ev["args"]))
                     st.markdown(steps[-1])
+                elif ev["type"] == "tool_result" and ev["name"] == "book_appointment":
+                    try:
+                        saved = json.loads(ev["result"])
+                        steps.append(f"**Saved to the database** ({saved['id']})")
+                    except (ValueError, KeyError, TypeError):
+                        steps.append("**Not saved**: " + str(ev["result"]))
+                    st.markdown(steps[-1])
                 elif ev["type"] == "final":
                     final = ev["content"]
                     usage = ev["usage"]
@@ -290,6 +299,11 @@ with st.sidebar:
         st.caption(f"Deployment: {os.environ.get('AOAI_DEPLOYMENT', 'not set')}")
         st.caption(f"API version: {os.environ.get('AOAI_API_VERSION', 'not set')}")
         st.caption(f"Tokens used this session: {st.session_state.tokens}")
+        try:
+            db_path, db_count = db_info()
+            st.caption(f"Database: {db_path} ({db_count} bookings)")
+        except Exception as exc:  # noqa: BLE001
+            st.caption(f"Database error: {exc}")
     st.markdown(
         '<p class="side-note">For an emergency, call your local emergency number. '
         "This assistant can't give medical advice.</p>",
