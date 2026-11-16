@@ -9,6 +9,7 @@ import ast
 import json
 import operator
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterator
 
@@ -102,12 +103,17 @@ def system_prompt() -> str:
         "ask for anything missing, check availability, summarise the details and get the "
         "user's explicit confirmation before calling book_appointment. Offer other free "
         "slots if one is taken. Never invent booking ids or availability. "
+        "Only say a booking is confirmed after book_appointment returned status confirmed, "
+        "and quote the id from that result. If it returned an error, say it was not booked. "
         "You do not give medical advice or diagnoses; for emergencies tell the user to "
         "call local emergency services. After tool results arrive, give a clear final answer."
     )
 
 
 # ----------------------------------------------------------------------- agent
+_BOOKING_ID = re.compile(r"\bBK-[A-Z0-9]{6}\b")
+
+
 class Agent:
     def __init__(self, client: AzureOpenAI | None = None, deployment: str | None = None,
                  max_steps: int = 6):
@@ -138,8 +144,15 @@ class Agent:
                 usage["completion"] += resp.usage.completion_tokens
             msg = resp.choices[0].message
             if not msg.tool_calls:
-                history.append({"role": "assistant", "content": msg.content or ""})
-                yield {"type": "final", "content": msg.content or "", "usage": usage}
+                content = msg.content or ""
+                # Guard: a booking id the tools never returned was made up by the model
+                known = set(_BOOKING_ID.findall(" ".join(
+                    str(m.get("content") or "") for m in messages if m.get("role") == "tool")))
+                if set(_BOOKING_ID.findall(content)) - known:
+                    content = ("I couldn't confirm that booking, so nothing was saved. "
+                               "Please try again and I'll check the schedule first.")
+                history.append({"role": "assistant", "content": content})
+                yield {"type": "final", "content": content, "usage": usage}
                 return
 
             call_msg = {"role": "assistant", "content": msg.content or "",
