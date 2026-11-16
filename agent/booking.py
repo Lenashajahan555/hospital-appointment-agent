@@ -80,6 +80,13 @@ def _conn() -> Iterator[sqlite3.Connection]:
         con.close()
 
 
+def db_info() -> tuple[str, int]:
+    """Where the database file is, and how many bookings it holds."""
+    with _conn() as con:
+        count = con.execute("SELECT COUNT(*) FROM bookings").fetchone()[0]
+    return str(DB.resolve()), count
+
+
 def load_bookings() -> list[dict]:
     with _conn() as con:
         rows = con.execute(f"SELECT {_COLUMNS} FROM bookings ORDER BY date, time").fetchall()
